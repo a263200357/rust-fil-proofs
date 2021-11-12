@@ -337,7 +337,7 @@ where
                     "get_inner_product called with {} [max {}] proofs to aggregate",
                     num_proofs_to_aggregate, SRS_MAX_PROOFS_TO_AGGREGATE
                 );
-                Ok(groth16::aggregate::setup_fake_srs(
+                Ok(groth16::aggregate::setup_random_srs(
                     rng,
                     num_proofs_to_aggregate,
                 ))
@@ -457,9 +457,9 @@ pub fn read_cached_params(cache_entry_path: &Path) -> Result<groth16::MappedPara
     }
 
     with_exclusive_read_lock::<_, io::Error, _>(cache_entry_path, |_file| {
+        info!("read parameters from cache {:?} ", cache_entry_path);
         let mapped_params =
             groth16::Parameters::build_mapped_parameters(cache_entry_path.to_path_buf(), false)?;
-        info!("read parameters from cache {:?} ", cache_entry_path);
 
         Ok(mapped_params)
     })

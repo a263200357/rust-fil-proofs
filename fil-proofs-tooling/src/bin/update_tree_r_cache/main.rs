@@ -6,8 +6,8 @@ use bincode::deserialize;
 use clap::{value_t, App, Arg, SubCommand};
 use filecoin_hashers::Hasher;
 use filecoin_proofs::{
-    is_sector_shape_base, is_sector_shape_sub2, is_sector_shape_sub8, is_sector_shape_top2,
-    with_shape, DefaultTreeDomain, PersistentAux, SectorShapeBase, SectorShapeSub2,
+    is_sector_shape_base, is_sector_shape_sub2, is_sector_shape_sub4, is_sector_shape_sub8, is_sector_shape_top2,
+    with_shape, DefaultTreeDomain, PersistentAux, SectorShapeBase, SectorShapeSub2, SectorShapeSub4,
     SectorShapeSub8, SectorShapeTop2, OCT_ARITY,
 };
 use generic_array::typenum::Unsigned;
@@ -84,7 +84,14 @@ fn get_tree_r_last_root(
             replica_config,
         )?;
         tree_r_last.root()
-    } else if is_sector_shape_sub8(sector_size) {
+    } else if is_sector_shape_sub4(sector_size) {
+        let tree_r_last = SectorShapeSub4::from_store_configs_and_replica(
+            base_tree_leafs,
+            configs,
+            replica_config,
+        )?;
+        tree_r_last.root()
+    }else if is_sector_shape_sub8(sector_size) {
         let tree_r_last = SectorShapeSub8::from_store_configs_and_replica(
             base_tree_leafs,
             configs,

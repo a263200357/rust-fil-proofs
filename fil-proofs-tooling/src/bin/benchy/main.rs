@@ -17,6 +17,7 @@ mod merkleproofs;
 mod prodbench;
 mod window_post;
 mod winning_post;
+mod aggregate_proof;
 
 fn main() -> Result<()> {
     fil_logger::init();
@@ -170,6 +171,24 @@ fn main() -> Result<()> {
                 .takes_value(false),
         );
 
+    let agg_proof_cmd = SubCommand::with_name("aggregate-proof")
+        .about("Benchmark Aggregate Window PoST Proofs")
+        .arg(
+            Arg::with_name("num_agg")
+                .long("num_agg")
+                .required(true)
+                .default_value("128")
+                .help("How many window-post proofs to aggregate (default is 128)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("size")
+                .long("size")
+                .required(true)
+                .help("The data size (e.g. 2KiB)")
+                .takes_value(true),
+        );
+
     let matches = App::new("benchy")
         .setting(AppSettings::ArgRequiredElseHelp)
         .version("0.1")
@@ -178,6 +197,7 @@ fn main() -> Result<()> {
         .subcommand(hash_cmd)
         .subcommand(prodbench_cmd)
         .subcommand(merkleproof_cmd)
+        .subcommand(agg_proof_cmd)
         .get_matches();
 
     match matches.subcommand() {
@@ -240,6 +260,11 @@ fn main() -> Result<()> {
 
             serde_json::to_writer(stdout(), &outputs)
                 .expect("failed to write ProdbenchOutput to stdout")
+        }
+        ("aggregate-proof", Some(m)) => {
+            let nums = Byte::from_str(value_t!(m, "num_agg", String)?)?.get_bytes() as usize;
+            let sector_size = Byte::from_str(value_t!(m, "size", String)?)?.get_bytes() as usize;
+            aggregate_proof::run(sector_size, nums)?;
         }
         _ => unreachable!(),
     }

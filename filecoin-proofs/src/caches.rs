@@ -64,12 +64,17 @@ impl<G> SRSCache<G> {
 
         loop {
             for sector_size in &PUBLISHED_SECTOR_SIZES {
-                let key = format!(
+                let stacked_key = format!(
                     "STACKED[{}-{}]-{}",
                     sector_size, num_proofs_to_aggregate, identifier,
                 );
-                trace!("inserting placeholder srs key with hash key {}", key);
-                data.insert(key, OnceCell::new());
+                trace!("inserting placeholder srs key with hash key {}", stacked_key);
+                let window_post_key = format!(
+                    "WINDOW_POST[{}-{}]-{}",
+                    sector_size, num_proofs_to_aggregate, identifier,
+                );
+                data.insert(stacked_key, OnceCell::new());
+                data.insert(window_post_key, OnceCell::new());
             }
 
             num_proofs_to_aggregate <<= 1;
@@ -368,6 +373,52 @@ pub fn get_stacked_srs_key<Tree: 'static + MerkleTreeTrait>(
     )
 }
 
+pub fn get_post_srs_key<Tree: 'static + MerkleTreeTrait>(
+    post_config: &PoStConfig,
+    num_proofs_to_aggregate: usize,
+) -> Result<Arc<Bls12ProverSRSKey>> {
+    match post_config.typ {
+        PoStType::Winning => {
+            let post_public_params = winning_post_public_params::<Tree>(post_config)?;
+
+            let srs_generator = || {
+                <FallbackPoStCompound<Tree> as CompoundProof<
+                    FallbackPoSt<'_, Tree>,
+                    FallbackPoStCircuit<Tree>,
+                >>::srs_key::<OsRng>(None, &post_public_params, num_proofs_to_aggregate)
+            };
+
+            Ok(lookup_srs_key(
+                format!(
+                    "WINNING_POST[{}-{}]",
+                    usize::from(post_config.padded_sector_size()),
+                    num_proofs_to_aggregate,
+                ),
+                srs_generator,
+            )?)
+        }
+        PoStType::Window => {
+            let post_public_params = window_post_public_params::<Tree>(post_config)?;
+
+            let srs_generator = || {
+                <FallbackPoStCompound<Tree> as CompoundProof<
+                    FallbackPoSt<'_, Tree>,
+                    FallbackPoStCircuit<Tree>,
+                >>::srs_key::<OsRng>(None, &post_public_params, num_proofs_to_aggregate)
+            };
+
+            Ok(lookup_srs_key(
+                format!(
+                    "WINDOW_POST[{}-{}]",
+                    usize::from(post_config.padded_sector_size()),
+                    num_proofs_to_aggregate,
+                ),
+                srs_generator,
+            )?)
+        }
+    }
+}
+
 pub fn get_stacked_srs_verifier_key<Tree: 'static + MerkleTreeTrait>(
     porep_config: PoRepConfig,
     num_proofs_to_aggregate: usize,
@@ -401,4 +452,54 @@ pub fn get_stacked_srs_verifier_key<Tree: 'static + MerkleTreeTrait>(
         ),
         srs_verifier_generator,
     )
+}
+
+pub fn get_post_srs_verifier_key<Tree: 'static + MerkleTreeTrait>(
+    post_config: &PoStConfig,
+    num_proofs_to_aggregate: usize,
+) -> Result<Arc<Bls12VerifierSRSKey>> {
+    match post_config.typ {
+        PoStType::Winning => {
+            let post_public_params = winning_post_public_params::<Tree>(post_config)?;
+
+            let srs_verifier_generator = || {
+                <FallbackPoStCompound<Tree> as CompoundProof<
+                    FallbackPoSt<'_, Tree>,
+                    FallbackPoStCircuit<Tree>,
+                >>::srs_verifier_key::<rand::rngs::OsRng>(
+                    None, &post_public_params, num_proofs_to_aggregate
+                )
+            };
+
+            Ok(lookup_srs_verifier_key(
+                format!(
+                    "WINNING_POST[{}-{}]",
+                    usize::from(post_config.padded_sector_size()),
+                    num_proofs_to_aggregate,
+                ),
+                srs_verifier_generator,
+            )?)
+        }
+        PoStType::Window => {
+            let post_public_params = window_post_public_params::<Tree>(post_config)?;
+
+            let srs_verifier_generator = || {
+                <FallbackPoStCompound<Tree> as CompoundProof<
+                    FallbackPoSt<'_, Tree>,
+                    FallbackPoStCircuit<Tree>,
+                >>::srs_verifier_key::<rand::rngs::OsRng>(
+                    None, &post_public_params, num_proofs_to_aggregate
+                )
+            };
+
+            Ok(lookup_srs_verifier_key(
+                format!(
+                    "WINDOW_POST[{}-{}]",
+                    usize::from(post_config.padded_sector_size()),
+                    num_proofs_to_aggregate,
+                ),
+                srs_verifier_generator,
+            )?)
+        }
+    }
 }
